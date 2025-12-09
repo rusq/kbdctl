@@ -1,64 +1,76 @@
 package main
 
 import (
-	"errors"
+	"context"
+	"flag"
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
+	"os/signal"
+	"runtime/trace"
+	"time"
 
-	"github.com/google/gousb"
+	"github.com/rusq/kbdctl/kbd"
 )
 
-const (
-	vid = 0x320f
-	pid = 0x5055
-)
-
-const (
-	dateOffset = 35
+var (
+	dumpConfig = flag.Bool("dump-config", false, "Dump keyboard configuration")
+	setTime    = flag.Bool("set-time", false, "Set keyboard time to current system time")
+	tracefile  = flag.String("trace", "", "Write trace to `file`")
 )
 
 func main() {
-	if err := run(); err != nil {
+	flag.Parse()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if *tracefile != "" {
+		f, err := os.Create(*tracefile)
+		if err != nil {
+			log.Fatalf("failed to create trace file: %v", err)
+		}
+		defer f.Close()
+		if err := trace.Start(f); err != nil {
+			log.Fatalf("failed to start trace: %v", err)
+		}
+		defer trace.Stop()
+	}
+
+	if err := run(ctx); err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("OK")
 }
-func run() error {
-	ctx := gousb.NewContext()
-	defer ctx.Close()
 
-	// Open any device with a given VID/PID using a convenience function.
-	dev, err := ctx.OpenDeviceWithVIDPID(vid, pid)
+func run(ctx context.Context) error {
+	kb, err := kbd.NewKeyboard()
 	if err != nil {
+		return fmt.Errorf("failed to open keyboard: %w", err)
+	}
+	defer func() {
+		if err := kb.Close(); err != nil {
+			slog.Error("failed to close keyboard", "error", err)
+		}
+	}()
 
-		return fmt.Errorf("could not open a device: %w", err)
-	}
-	if dev == nil {
-		return errors.New("device not found")
-	}
-	defer dev.Close()
-	if err := dev.SetAutoDetach(true); err != nil {
-		return fmt.Errorf("error setting auto-detach: %w", err)
-	}
-
-	cfgNum, err := dev.ActiveConfigNum()
-	if err != nil {
-		return fmt.Errorf("error getting active configuration: %w", err)
+	if *dumpConfig {
+		cfg, err := kb.LoadConfig(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+		fmt.Printf("% x\n", cfg)
+		return nil
 	}
 
-	cfg, err := dev.Config(cfgNum)
-	if err != nil {
-		return fmt.Errorf("error getting configuration %d: %w", cfgNum, err)
+	if *setTime {
+		t := time.Now()
+		if err := kb.SetTime(ctx, t); err != nil {
+			return fmt.Errorf("failed to set time: %w", err)
+		}
+		slog.Info("time set", "time", t, "took", time.Since(t))
+		return nil
 	}
-	defer cfg.Close()
 
-	intf, err := cfg.Interface(3, 0)
-	if err != nil {
-		return fmt.Errorf("error getting interface %d: %w", 3, err)
-	}
-	defer intf.Close()
-
-	_ = intf
 	return nil
 }
