@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	dumpConfig = flag.Bool("dump-config", false, "Dump keyboard configuration")
-	setTime    = flag.Bool("set-time", false, "Set keyboard time to current system time")
-	tracefile  = flag.String("trace", "", "Write trace to `file`")
+	dumpConfig = flag.Bool("dump-config", false, "dump keyboard configuration")
+	setTime    = flag.Bool("set-time", false, "set keyboard time to current system time")
+	tracefile  = flag.String("trace", "", "write trace to `file`")
 )
 
 func main() {
