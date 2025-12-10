@@ -8,7 +8,7 @@ import (
 	"github.com/google/gousb"
 )
 
-type USB struct {
+type usbDevice struct {
 	ctx    *gousb.Context
 	device *gousb.Device
 	cfg    *gousb.Config
@@ -17,7 +17,7 @@ type USB struct {
 	outEp  *gousb.OutEndpoint
 }
 
-func NewUSB(vid, pid gousb.ID) (*USB, error) {
+func newUSBDevice(vid, pid gousb.ID) (*usbDevice, error) {
 	uctx := gousb.NewContext()
 
 	// Open any device with a given VID/PID using a convenience function.
@@ -87,7 +87,7 @@ func NewUSB(vid, pid gousb.ID) (*USB, error) {
 		}
 	}
 
-	return &USB{
+	return &usbDevice{
 		ctx:    uctx,
 		device: dev,
 		cfg:    cfg,
@@ -97,7 +97,7 @@ func NewUSB(vid, pid gousb.ID) (*USB, error) {
 	}, nil
 }
 
-func (k *USB) Close() error {
+func (k *usbDevice) Close() error {
 	var errs error
 	if k.intf != nil {
 		k.intf.Close()
@@ -123,7 +123,7 @@ func (k *USB) Close() error {
 	return errs
 }
 
-func (k *USB) write(ctx context.Context, data []byte) (int, error) {
+func (k *usbDevice) write(ctx context.Context, data []byte) (int, error) {
 	n, err := k.outEp.WriteContext(ctx, data)
 	if err != nil {
 		return n, fmt.Errorf("failed to write data: %w", err)
@@ -131,7 +131,7 @@ func (k *USB) write(ctx context.Context, data []byte) (int, error) {
 	return n, nil
 }
 
-func (k *USB) read(ctx context.Context) ([]byte, error) {
+func (k *usbDevice) read(ctx context.Context) ([]byte, error) {
 	resp := make([]byte, k.inEp.Desc.MaxPacketSize)
 	n, err := k.inEp.ReadContext(ctx, resp)
 	if err != nil {

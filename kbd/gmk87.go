@@ -20,11 +20,11 @@ const (
 )
 
 type GMK87 struct {
-	usb *USB
+	usb *usbDevice
 }
 
 func NewKeyboard() (*GMK87, error) {
-	usb, err := NewUSB(vid, pid)
+	usb, err := newUSBDevice(vid, pid)
 	if err != nil {
 		return nil, err
 	}
