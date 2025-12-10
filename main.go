@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -20,10 +22,25 @@ var (
 	tracefile  = flag.String("trace", "", "write trace to `file`")
 )
 
+func nag(w io.Writer) {
+	const nagtxt = `
+kbdctl  Copyright (C) 2025  Rustam Gilyazov.
+This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you
+are welcome to redistribute it under certain conditions; see LICENSE.
+
+GMK-87 protocol implementation (c) Copyright 2025 Jochen Eisinger
+`
+	fmt.Fprintln(w, nagtxt)
+}
+
 func main() {
 	flag.Parse()
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+
+	nag(os.Stdout)
+
 	if *tracefile != "" {
 		f, err := os.Create(*tracefile)
 		if err != nil {
@@ -61,9 +78,7 @@ func run(ctx context.Context) error {
 		}
 		fmt.Printf("% x\n", cfg)
 		return nil
-	}
-
-	if *setTime {
+	} else if *setTime {
 		t := time.Now()
 		if err := kb.SetTime(ctx, t); err != nil {
 			return fmt.Errorf("failed to set time: %w", err)
@@ -71,6 +86,5 @@ func run(ctx context.Context) error {
 		slog.Info("time set", "time", t, "took", time.Since(t))
 		return nil
 	}
-
-	return nil
+	return errors.New("nothing to do, seek help")
 }
