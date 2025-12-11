@@ -1,1 +1,5 @@
 trace.out
+.dist
+*.swp
+*~
+.*~
